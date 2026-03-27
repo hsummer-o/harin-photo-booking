@@ -984,10 +984,9 @@ function showStatus(type, msg) {
 async function loadCalendarFromGAS() {
   showStatus('', '空き状況を確認中...');
   try {
-    const res = await fetch(CONFIG.GAS_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'getAvailability' }),
-    });
+    // GASはGETリクエストでも空き状況を返す（CORSリダイレクト対応）
+    const url = CONFIG.GAS_URL + '?action=getAvailability';
+    const res = await fetch(url, { redirect: 'follow' });
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
     busyMap = data.busyMap || {};
@@ -996,7 +995,6 @@ async function loadCalendarFromGAS() {
     renderCalendar();
   } catch(e) {
     showStatus('error', '読み込みに失敗しました。しばらくしてから再度お試しください。');
-    // フォールバック: デモデータで表示
     loadDemoData();
   }
 }
@@ -1179,9 +1177,10 @@ async function submitBooking() {
 
   try {
     if (CONFIG.GAS_URL !== 'YOUR_GAS_DEPLOY_URL') {
-      const res = await fetch(CONFIG.GAS_URL, {
-        method: 'POST',
-        body: JSON.stringify(payload),
+      // GAS CORS対応: URLパラメータにJSONを乗せてGETで送信
+      const encoded = encodeURIComponent(JSON.stringify(payload));
+      const res = await fetch(CONFIG.GAS_URL + '?data=' + encoded, {
+        redirect: 'follow',
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || '送信に失敗しました');
@@ -1193,7 +1192,7 @@ async function submitBooking() {
     btn.textContent = '予約リクエストを送信';
     const err = document.getElementById('submit-error');
     err.style.display = 'block';
-    err.textContent = '送信に失敗しました。お手数ですが、インスタグラムよりご連絡ください。';
+    err.innerHTML = `送信に失敗しました。お手数ですが、時間をおいて再度お試しいただくか、<br>メール（<a href="mailto:harin.photograph@gmail.com" style="color:var(--red);">harin.photograph@gmail.com</a>）までご連絡ください。<br><small style="color:var(--fg3);">このフォームからの送信を引き続きご利用いただけます。</small>`;
   }
 }
 </script>
