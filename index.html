@@ -758,6 +758,23 @@
           この日の別の時間をご相談
         </button>
         <p class="time-consult-note">ご希望の時間帯が上記にない場合はこちらを選択し、備考欄にご記入ください。</p>
+
+        <!-- 2枠目 -->
+        <div id="second-slot-area" style="display:none; margin-top:20px; padding-top:20px; border-top:1px solid var(--border);">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <p class="section-title" style="margin:0;">2枠目（任意）</p>
+            <button onclick="removeSecondSlot()" style="background:none;border:none;font-size:11px;color:var(--fg3);cursor:pointer;letter-spacing:0.04em;">✕ 削除</button>
+          </div>
+          <div class="time-grid" id="time-grid-2"></div>
+          <div id="second-slot-price" style="font-size:12px;color:var(--fg2);margin-top:10px;letter-spacing:0.04em;"></div>
+        </div>
+
+        <div id="add-second-slot-wrap" style="display:none; margin-top:16px;">
+          <button class="time-consult-btn" onclick="showSecondSlot()" style="border-style:dashed;">
+            + 2枠目を追加する（連続撮影・¥60,000）
+          </button>
+          <p class="time-consult-note">2時間連続撮影をご希望の方はこちらから追加できます。</p>
+        </div>
       </div>
     </div>
 
@@ -822,6 +839,12 @@
     </div>
 
     <div class="form-group">
+      <label>撮影場所のご希望（任意）</label>
+      <input type="text" id="f-location" placeholder="例：芝公園、明治神宮、未定など">
+      <p style="font-size:11px;color:var(--fg3);margin-top:5px;">未定の場合はご予約確定後にご相談いたします。</p>
+    </div>
+
+    <div class="form-group">
       <label>ご要望・ご質問（任意）</label>
       <textarea id="f-note" placeholder="神社のご希望、衣装持込のご相談など、お気軽にご記入ください"></textarea>
     </div>
@@ -874,6 +897,18 @@
       <div class="summary-row">
         <span class="summary-label">お子様</span>
         <span class="summary-value" id="s-child"></span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">撮影場所</span>
+        <span class="summary-value" id="s-location"></span>
+      </div>
+      <div class="summary-row" id="s-second-time-row" style="display:none">
+        <span class="summary-label">2枠目</span>
+        <span class="summary-value" id="s-second-time"></span>
+      </div>
+      <div class="summary-row" id="s-price-row">
+        <span class="summary-label">撮影料金</span>
+        <span class="summary-value" id="s-price">¥30,000（税込）</span>
       </div>
       <div class="summary-row" id="s-note-row" style="display:none">
         <span class="summary-label">ご要望</span>
@@ -949,6 +984,8 @@ let state = {
   month: new Date().getMonth(),
   selectedDate: null,
   selectedTime: null,
+  secondTime: null,
+  isConsult: false,
 };
 
 // ---- Step navigation ----
@@ -1092,8 +1129,11 @@ function selectDate(key, dow) {
   state.selectedDate = key;
   state.selectedTime = null;
   document.getElementById('btn-2').disabled = true;
+  state.secondTime = null;
   const consultBtn = document.getElementById('time-consult-btn');
   if (consultBtn) consultBtn.classList.remove('consult-selected');
+  document.getElementById('add-second-slot-wrap').style.display = 'none';
+  document.getElementById('second-slot-area').style.display = 'none';
   renderCalendar();
 
   const parts = key.split('-');
@@ -1114,11 +1154,16 @@ function selectDate(key, dow) {
 function selectTime(time, el) {
   state.selectedTime = time;
   state.isConsult = false;
+  state.secondTime = null;
   document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
   el.classList.add('selected');
   const consultBtn = document.getElementById('time-consult-btn');
   if (consultBtn) consultBtn.classList.remove('consult-selected');
   document.getElementById('btn-2').disabled = false;
+  // 2枠目エリアをリセット
+  document.getElementById('add-second-slot-wrap').style.display = 'block';
+  document.getElementById('second-slot-area').style.display = 'none';
+  renderSecondSlot();
 }
 
 function selectConsultTime(el) {
@@ -1127,6 +1172,45 @@ function selectConsultTime(el) {
   document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
   el.classList.add('consult-selected');
   document.getElementById('btn-2').disabled = false;
+}
+
+function showSecondSlot() {
+  document.getElementById('second-slot-area').style.display = 'block';
+  document.getElementById('add-second-slot-wrap').style.display = 'none';
+  renderSecondSlot();
+}
+
+function removeSecondSlot() {
+  state.secondTime = null;
+  document.getElementById('second-slot-area').style.display = 'none';
+  document.getElementById('add-second-slot-wrap').style.display = 'block';
+}
+
+function renderSecondSlot() {
+  if (!state.selectedTime || state.isConsult) return;
+  const firstHour = parseInt(state.selectedTime.split(':')[0]);
+  const busyHours = busyMap[state.selectedDate] || [];
+
+  // 1枠目の終了時間以降の時間帯のみ選択可能
+  const html = CONFIG.AVAILABLE_HOURS.map(h => {
+    if (h <= firstHour) return ''; // 1枠目以前は非表示
+    const isBusy = Array.isArray(busyHours) && busyHours.includes(h);
+    const isSelected = state.secondTime === `${h}:00`;
+    const label = `${h}:00`;
+    return `<button class="time-btn${isSelected ? ' selected' : ''}" ${isBusy ? 'disabled' : ''} onclick="selectSecondTime('${label}', this)">${label}</button>`;
+  }).join('');
+
+  const grid = document.getElementById('time-grid-2');
+  grid.innerHTML = html || '<p style="font-size:12px;color:var(--fg3);grid-column:1/-1;">この時間帯の後に空き枠がありません</p>';
+}
+
+function selectSecondTime(time, el) {
+  state.secondTime = time;
+  document.querySelectorAll('#time-grid-2 .time-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  // 合計金額を表示
+  document.getElementById('second-slot-price').textContent =
+    `1枠目 ${state.selectedTime} + 2枠目 ${time} → 合計 ¥60,000（税込）`;
 }
 
 function changeMonth(dir) {
@@ -1152,6 +1236,10 @@ function formatTel(input) {
   } else {
     input.value = v.slice(0,3) + '-' + v.slice(3,7) + '-' + v.slice(7,11);
   }
+}
+
+function getLocation() {
+  return document.getElementById('f-location').value.trim() || '未定';
 }
 
 function togglePreferredTimeField() {
@@ -1219,12 +1307,27 @@ function fillSummary() {
   document.getElementById('s-tel').textContent = document.getElementById('f-tel').value;
   document.getElementById('s-child').textContent =
     `${document.getElementById('f-age').value} / ${document.getElementById('f-count').value}名`;
+  document.getElementById('s-location').textContent = getLocation();
   const nickname = document.getElementById('f-nickname').value;
   document.getElementById('s-nickname-row').style.display = nickname ? 'flex' : 'none';
   document.getElementById('s-nickname').textContent = nickname;
   const note = document.getElementById('f-note').value;
   document.getElementById('s-note-row').style.display = note ? 'flex' : 'none';
   document.getElementById('s-note').textContent = note;
+
+  // 2枠目
+  const s2row = document.getElementById('s-second-time-row');
+  const s2price = document.getElementById('s-price-row');
+  if (state.secondTime) {
+    document.getElementById('s-second-time').textContent = state.secondTime;
+    document.getElementById('s-price').textContent = '¥60,000（税込）';
+    if (s2row) s2row.style.display = 'flex';
+    if (s2price) s2price.style.display = 'flex';
+  } else {
+    document.getElementById('s-price').textContent = '¥30,000（税込）';
+    if (s2row) s2row.style.display = 'none';
+    if (s2price) s2price.style.display = 'flex';
+  }
 }
 
 // ---- Submit: GAS経由でカレンダー登録＋メール送信 ----
@@ -1238,6 +1341,7 @@ async function submitBooking() {
     action: 'createBooking',
     type: state.type,
     preferredTime: state.isConsult ? document.getElementById('f-preferred-time').value : '',
+    secondTime: state.secondTime || '',
     date: state.selectedDate,
     time: state.selectedTime,
     name: document.getElementById('f-name').value,
@@ -1248,16 +1352,21 @@ async function submitBooking() {
     age: document.getElementById('f-age').value,
     count: document.getElementById('f-count').value,
     note: document.getElementById('f-note').value,
+    location: getLocation(),
   };
 
   try {
     if (CONFIG.GAS_URL !== 'YOUR_GAS_DEPLOY_URL') {
-      // GAS CORS対応: URLパラメータにJSONを乗せてGETで送信
-      const encoded = encodeURIComponent(JSON.stringify(payload));
-      const res = await fetch(CONFIG.GAS_URL + '?data=' + encoded, {
+      // GAS CORS対応: FormDataでPOST送信
+      const form = new FormData();
+      form.append('data', JSON.stringify(payload));
+      const res = await fetch(CONFIG.GAS_URL, {
+        method: 'POST',
+        body: form,
         redirect: 'follow',
       });
-      const data = await res.json();
+      const text = await res.text();
+      const data = JSON.parse(text);
       if (!data.success) throw new Error(data.error || '送信に失敗しました');
     }
     document.getElementById('confirm-email').textContent = payload.email;
