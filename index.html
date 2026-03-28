@@ -1359,7 +1359,7 @@ async function submitBooking() {
     if (CONFIG.GAS_URL !== 'YOUR_GAS_DEPLOY_URL') {
       // GAS CORS対応: URLパラメータにJSONを乗せてGETで送信
       const encoded = encodeURIComponent(JSON.stringify(payload));
-      const res = await fetch(CONFIG.GAS_URL + '?data=' + encoded, {
+      const res = await fetch(CONFIG.GAS_URL + '?p=' + encoded, {
         redirect: 'follow',
       });
       const text = await res.text();
