@@ -1340,10 +1340,10 @@ async function submitBooking() {
   const payload = {
     action: 'createBooking',
     type: state.type,
-    preferredTime: state.isConsult ? document.getElementById('f-preferred-time').value : '',
-    secondTime: state.secondTime || '',
     date: state.selectedDate,
     time: state.selectedTime,
+    preferredTime: state.isConsult ? document.getElementById('f-preferred-time').value : '',
+    secondTime: state.secondTime || '',
     name: document.getElementById('f-name').value,
     kana: document.getElementById('f-kana').value,
     nickname: document.getElementById('f-nickname').value,
@@ -1351,24 +1351,27 @@ async function submitBooking() {
     tel: document.getElementById('f-tel').value,
     age: document.getElementById('f-age').value,
     count: document.getElementById('f-count').value,
-    note: document.getElementById('f-note').value,
     location: getLocation(),
+    note: document.getElementById('f-note').value,
   };
 
   try {
     if (CONFIG.GAS_URL !== 'YOUR_GAS_DEPLOY_URL') {
       // GAS CORS対応: URLパラメータにJSONを乗せてGETで送信
+      // ※ POSTはGASリダイレクト時にbodyが消えるためGETを使用
       const encoded = encodeURIComponent(JSON.stringify(payload));
-      const res = await fetch(CONFIG.GAS_URL + '?p=' + encoded, {
+      const res = await fetch(CONFIG.GAS_URL + '?booking=' + encoded, {
         redirect: 'follow',
       });
       const text = await res.text();
-      const data = JSON.parse(text);
-      if (!data.success) throw new Error(data.error || '送信に失敗しました');
+      console.log('GAS response:', text);
+      const result = JSON.parse(text);
+      if (!result.success) throw new Error(result.error || '送信に失敗しました');
     }
     document.getElementById('confirm-email').textContent = payload.email;
     goStep(5);
   } catch(e) {
+    console.error('Submit error:', e);
     btn.disabled = false;
     btn.textContent = '予約リクエストを送信';
     const err = document.getElementById('submit-error');
@@ -1376,6 +1379,7 @@ async function submitBooking() {
     err.innerHTML = `送信に失敗しました。お手数ですが、時間をおいて再度お試しいただくか、<br>メール（<a href="mailto:harin.photograph@gmail.com" style="color:var(--red);">harin.photograph@gmail.com</a>）までご連絡ください。<br><small style="color:var(--fg3);">このフォームからの送信を引き続きご利用いただけます。</small>`;
   }
 }
+
 </script>
 
 <!-- FOOTER -->
